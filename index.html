@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a0e1a">
+  <title>IMEI 利用制限チェッカー</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --surface: #111827;
+      --surface2: #1a2236;
+      --border: rgba(255,255,255,0.08);
+      --border-active: rgba(99,179,255,0.4);
+      --text: #f0f4ff;
+      --muted: #6b7a99;
+      --accent: #3b82f6;
+      --accent-glow: rgba(59,130,246,0.2);
+      --success: #10b981;
+      --success-glow: rgba(16,185,129,0.18);
+      --danger: #ef4444;
+      --danger-glow: rgba(239,68,68,0.18);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-top: env(safe-area-inset-top, 0px);
+    }
+
+```
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* ── グリッド背景 ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none; z-index: 0;
+}
+
+.orb {
+  position: fixed; border-radius: 50%;
+  filter: blur(70px); pointer-events: none; z-index: 0;
+}
+.orb-1 { width:300px;height:300px;background:rgba(59,130,246,0.09);top:-60px;right:-60px; }
+.orb-2 { width:260px;height:260px;background:rgba(16,185,129,0.06);bottom:100px;left:-60px; }
+
+/* ── ヘッダー ── */
+header {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(10,14,26,0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding-top: var(--safe-top);
+}
+
+.header-inner {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px;
+}
+
+.logo-icon {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, #3b82f6, #0ea5e9);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; flex-shrink: 0;
+}
+
+.logo-text {
+  font-family: 'Space Mono', monospace;
+  font-size: 15px; font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.logo-text span { color: var(--accent); }
+
+.header-badge {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(59,130,246,0.12);
+  border: 1px solid rgba(59,130,246,0.25);
+  color: #7dd3fc;
+  font-size: 10px; font-weight: 500;
+  letter-spacing: 0.08em;
+  padding: 3px 10px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+
+.dot-live {
+  width: 5px; height: 5px;
+  background: #7dd3fc; border-radius: 50%;
+  animation: blink 2s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:0.3} }
+
+/* ── メインスクロール ── */
+main {
+  position: relative; z-index: 10;
+  padding: 16px 14px calc(24px + var(--safe-bottom));
+  max-width: 480px; margin: 0 auto;
+}
+
+/* ── ヒーロー ── */
+.hero {
+  text-align: center;
+  padding: 20px 8px 16px;
+}
+
+.hero h1 {
+  font-size: 22px; font-weight: 700;
+  line-height: 1.3; color: #fff;
+  margin-bottom: 8px;
+}
+.hero h1 .mono {
+  font-family: 'Space Mono', monospace;
+  color: #63b3ff;
+}
+
+.hero-sub {
+  font-size: 12px; color: var(--muted);
+  line-height: 1.7;
+}
+
+/* ── ステップバー ── */
+.steps {
+  display: flex; gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.step {
+  flex: 1; padding: 12px 6px;
+  text-align: center;
+  position: relative;
+}
+
+.step + .step::before {
+  content: '→';
+  position: absolute; left: 0; top: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--muted); font-size: 12px;
+}
+
+.step-num {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff; font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 5px;
+}
+
+.step-label { font-size: 11px; color: var(--text); font-weight: 500; line-height: 1.3; }
+.step-sub   { font-size: 9px;  color: var(--muted); margin-top: 2px; }
+
+/* ── セクション ── */
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.section-header {
+  padding: 14px 16px 0;
+  display: flex; align-items: center; gap: 7px;
+}
+
+.section-bar {
+  width: 3px; height: 13px;
+  background: var(--accent); border-radius: 2px; flex-shrink: 0;
+}
+
+.section-title {
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted);
+}
+
+.section-body { padding: 12px 16px 16px; }
+
+/* ── IMEI入力 ── */
+.imei-field-wrap { position: relative; }
+
+.imei-field {
+  width: 100%;
+  background: var(--surface2);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 48px 16px 16px;
+  font-family: 'Space Mono', monospace;
+  font-size: clamp(18px, 5vw, 22px);
+  letter-spacing: 0.1em;
+  color: #fff; outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  /* スマホでズームしない */
+  font-size: 16px;
+}
+
+/* 入力時は大きく */
+.imei-field:not(:placeholder-shown) { font-size: clamp(18px, 5vw, 22px); }
+
+.imei-field::placeholder { color: #2a3650; letter-spacing: 0.05em; }
+.imei-field:focus        { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.imei-field.valid        { border-color: var(--success); box-shadow: 0 0 0 3px var(--success-glow); }
+.imei-field.invalid      { border-color: var(--danger);  box-shadow: 0 0 0 3px var(--danger-glow); }
+
+.imei-status {
+  position: absolute; right: 14px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px; pointer-events: none;
+}
+
+/* プログレスバー */
+.prog-row {
+  display: flex; gap: 2px; margin-top: 10px;
+}
+.prog-dot {
+  height: 3px; border-radius: 2px;
+  background: var(--surface2); flex: 1;
+  transition: background 0.15s;
+}
+.prog-dot.filled { background: var(--accent); }
+.prog-dot.valid  { background: var(--success); }
+
+.imei-hint {
+  font-size: 11px; margin-top: 7px; color: var(--muted);
+}
+.imei-hint.ok  { color: var(--success); }
+.imei-hint.err { color: var(--danger); }
+
+/* クイックコピーボタン */
+.quick-copy-btn {
+  width: 100%; margin-top: 10px;
+  padding: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 13px; font-weight: 500;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all 0.18s;
+}
+.quick-copy-btn:active { opacity: 0.7; transform: scale(0.98); }
+.quick-copy-btn.copied { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); color: var(--success); }
+.quick-copy-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* IMEIの調べ方 */
+.how-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.how-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px;
+}
+.how-label {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 5px;
+}
+.how-text { font-size: 11px; color: var(--text); line-height: 1.6; }
+.mono-tag {
+  font-family: 'Space Mono', monospace;
+  background: rgba(59,130,246,0.15); color: #93c5fd;
+  padding: 0 5px; border-radius: 4px; font-size: 11px;
+}
+
+/* ── キャリアカード ── */
+.carrier-list { display: flex; flex-direction: column; gap: 10px; }
+
+.carrier-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.carrier-card.enabled { border-color: rgba(59,130,246,0.2); }
+
+.carrier-head {
+  display: flex; align-items: center;
+  gap: 12px; padding: 14px 14px 10px;
+}
+
+.c-logo {
+  width: 40px; height: 40px; border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; color: #fff; flex-shrink: 0;
+  line-height: 1.2; text-align: center;
+}
+.cl-sb { background: linear-gradient(135deg,#003087,#0066cc); }
+.cl-dc { background: linear-gradient(135deg,#b00012,#e60012); }
+.cl-au { background: linear-gradient(135deg,#c94000,#f05a28); }
+.cl-rm { background: linear-gradient(135deg,#8b0000,#be0000); }
+
+.c-info { flex: 1; min-width: 0; }
+.c-name { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+.c-url  { font-size: 10px; color: var(--muted); font-family: 'Space Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ボタン群 */
+.carrier-btns {
+  display: flex; gap: 0;
+  border-top: 1px solid var(--border);
+}
+
+/* コピーだけ */
+.btn-copy-only {
+  flex: 0 0 56px;
+  padding: 14px 0;
+  background: none; border: none;
+  border-right: 1px solid var(--border);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  transition: background 0.15s;
+}
+.btn-copy-only:active { background: rgba(255,255,255,0.05); }
+.btn-copy-only.copied { background: rgba(16,185,129,0.08); }
+
+/* コピー＆開く（メイン） */
+.btn-main {
+  flex: 1;
+  padding: 14px 12px;
+  background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+  border: none; cursor: pointer;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 13px; font-weight: 700;
+  color: #fff; letter-spacing: 0.04em;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all 0.18s;
+  -webkit-font-smoothing: antialiased;
+}
+.btn-main:active { opacity: 0.85; transform: scale(0.99); }
+.btn-main.done {
+  background: linear-gradient(135deg, #065f46, #10b981);
+}
+.btn-main:disabled, .btn-copy-only:disabled {
+  opacity: 0.3; cursor: not-allowed;
+  background: none;
+}
+.btn-main:disabled { background: var(--surface2); color: var(--muted); }
+
+/* 無効カード */
+.carrier-card.disabled-card .carrier-btns {
+  pointer-events: none; opacity: 0.35;
+}
+
+/* ── トースト ── */
+.toast {
+  position: fixed;
+  bottom: calc(24px + var(--safe-bottom));
+  left: 50%; transform: translateX(-50%) translateY(60px);
+  background: #10b981;
+  color: #fff; padding: 11px 22px;
+  border-radius: 100px;
+  font-size: 13px; font-weight: 600;
+  box-shadow: 0 4px 20px rgba(16,185,129,0.45);
+  z-index: 200;
+  opacity: 0;
+  transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1), opacity 0.28s;
+  white-space: nowrap;
+  max-width: calc(100vw - 40px);
+  text-align: center;
+}
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+/* ── 注意書き ── */
+.notice {
+  background: rgba(245,158,11,0.07);
+  border: 1px solid rgba(245,158,11,0.18);
+  border-radius: 12px; padding: 13px 14px;
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.notice-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.notice-text { font-size: 11px; color: rgba(245,158,11,0.85); line-height: 1.7; }
+
+/* ── フッター ── */
+footer {
+  text-align: center;
+  font-size: 10px; color: var(--muted);
+  line-height: 1.8;
+  padding: 8px 16px calc(8px + var(--safe-bottom));
+  position: relative; z-index: 10;
+}
+
+/* ── タッチフィードバック強化 ── */
+@media (hover: none) {
+  .btn-main:hover { opacity: 1; transform: none; }
+}
+```
+
+  </style>
+</head>
+<body>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- ヘッダー -->
+
+  <header>
+    <div class="header-inner">
+      <div class="logo-icon">📱</div>
+      <div class="logo-text">IMEI<span>Check</span></div>
+      <div class="header-badge"><div class="dot-live"></div>全キャリア対応</div>
+    </div>
+  </header>
+
+  <main>
+    <!-- ヒーロー -->
+    <div class="hero">
+      <h1>IMEI <span class="mono">利用制限</span><br>チェッカー</h1>
+      <p class="hero-sub">IMEIを入力 → ボタンを押すだけ<br>クリップボードにコピーして公式ページへ</p>
+    </div>
+
+```
+<!-- ステップ -->
+<div class="steps">
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-label">IMEI入力</div>
+    <div class="step-sub">15桁</div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-label">ボタンを押す</div>
+    <div class="step-sub">コピー＆開く</div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-label">貼り付けて確認</div>
+    <div class="step-sub">長押し → 貼り付け</div>
+  </div>
+</div>
+
+<!-- IMEI入力セクション -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-bar"></div>
+    <div class="section-title">IMEI番号を入力</div>
+  </div>
+  <div class="section-body">
+    <div class="imei-field-wrap">
+      <input
+        type="tel"
+        class="imei-field"
+        id="imei-input"
+        placeholder="000000000000000"
+        maxlength="15"
+        inputmode="numeric"
+        autocomplete="off"
+      >
+      <div class="imei-status" id="imei-status"></div>
+    </div>
+    <div class="prog-row" id="prog-row"></div>
+    <div class="imei-hint" id="imei-hint">15桁の数字を入力してください</div>
+
+    <!-- 全コピーボタン -->
+    <button class="quick-copy-btn" id="global-copy-btn" onclick="globalCopy()" disabled>
+      📋 IMEIをコピーする
+    </button>
+  </div>
+</div>
+
+<!-- IMEIの調べ方 -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-bar"></div>
+    <div class="section-title">IMEIの調べ方</div>
+  </div>
+  <div class="section-body">
+    <div class="how-grid">
+      <div class="how-item">
+        <div class="how-label">📞 ダイヤル</div>
+        <div class="how-text">電話アプリで <span class="mono-tag">*#06#</span> を入力</div>
+      </div>
+      <div class="how-item">
+        <div class="how-label">⚙️ 設定</div>
+        <div class="how-text">設定 → 一般 → 情報（iOS）<br>設定 → 端末情報（Android）</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- キャリア一覧 -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-bar"></div>
+    <div class="section-title">キャリア公式ページで確認</div>
+  </div>
+  <div class="section-body">
+    <div class="carrier-list">
+
+      <!-- SoftBank -->
+      <div class="carrier-card disabled-card" id="card-softbank">
+        <div class="carrier-head">
+          <div class="c-logo cl-sb">Soft<br>Bank</div>
+          <div class="c-info">
+            <div class="c-name">SoftBank / Y!mobile</div>
+            <div class="c-url">ct11.my.softbank.jp</div>
+          </div>
+        </div>
+        <div class="carrier-btns">
+          <button class="btn-copy-only" id="cp-softbank" onclick="copyOnly('softbank')" title="コピーのみ" disabled>📋</button>
+          <button class="btn-main" id="btn-softbank" onclick="copyAndOpen('softbank')" disabled>
+            コピー＆公式ページを開く →
+          </button>
+        </div>
+      </div>
+
+      <!-- docomo -->
+      <div class="carrier-card disabled-card" id="card-docomo">
+        <div class="carrier-head">
+          <div class="c-logo cl-dc">docomo</div>
+          <div class="c-info">
+            <div class="c-name">NTT docomo</div>
+            <div class="c-url">nw-restriction.nttdocomo.co.jp ※http</div>
+          </div>
+        </div>
+        <div class="carrier-btns">
+          <button class="btn-copy-only" id="cp-docomo" onclick="copyOnly('docomo')" disabled>📋</button>
+          <button class="btn-main" id="btn-docomo" onclick="copyAndOpen('docomo')" disabled>
+            コピー＆公式ページを開く →
+          </button>
+        </div>
+      </div>
+
+      <!-- au -->
+      <div class="carrier-card disabled-card" id="card-au">
+        <div class="carrier-head">
+          <div class="c-logo cl-au">au</div>
+          <div class="c-info">
+            <div class="c-name">au / UQ mobile</div>
+            <div class="c-url">au-cs0.kddi.com</div>
+          </div>
+        </div>
+        <div class="carrier-btns">
+          <button class="btn-copy-only" id="cp-au" onclick="copyOnly('au')" disabled>📋</button>
+          <button class="btn-main" id="btn-au" onclick="copyAndOpen('au')" disabled>
+            コピー＆公式ページを開く →
+          </button>
+        </div>
+      </div>
+
+      <!-- 楽天 -->
+      <div class="carrier-card disabled-card" id="card-rakuten">
+        <div class="carrier-head">
+          <div class="c-logo cl-rm">楽天</div>
+          <div class="c-info">
+            <div class="c-name">楽天モバイル</div>
+            <div class="c-url">network.mobile.rakuten.co.jp</div>
+          </div>
+        </div>
+        <div class="carrier-btns">
+          <button class="btn-copy-only" id="cp-rakuten" onclick="copyOnly('rakuten')" disabled>📋</button>
+          <button class="btn-main" id="btn-rakuten" onclick="copyAndOpen('rakuten')" disabled>
+            コピー＆公式ページを開く →
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 注意書き -->
+<div class="notice">
+  <div class="notice-icon">💡</div>
+  <div class="notice-text">
+    ボタンを押すとIMEIがコピーされ、公式ページが開きます。<br>
+    ページ内のIMEI入力欄を<strong>長押し → 貼り付け</strong>で確認できます。
+  </div>
+</div>
+```
+
+  </main>
+
+  <footer>
+    各キャリア公式ページへの案内サービスです<br>
+    照会結果はキャリアのシステムに依存します
+  </footer>
+
+  <script>
+    const URLS = {
+      softbank: 'https://ct11.my.softbank.jp/WBF/icv',
+      docomo:   'http://nw-restriction.nttdocomo.co.jp/top.php',
+      au:       'https://au-cs0.kddi.com/FtHome',
+      rakuten:  'https://network.mobile.rakuten.co.jp/restriction/',
+    };
+
+    const CARRIERS = ['softbank','docomo','au','rakuten'];
+
+    let imei = '';
+
+    // プログレスドット生成
+    const progRow = document.getElementById('prog-row');
+    for (let i = 0; i < 15; i++) {
+      const d = document.createElement('div');
+      d.className = 'prog-dot'; d.id = 'pd'+i;
+      progRow.appendChild(d);
+    }
+
+    // IMEI入力
+    document.getElementById('imei-input').addEventListener('input', function() {
+      const val = this.value.replace(/\D/g,'').slice(0,15);
+      this.value = imei = val;
+
+      // プログレス
+      for (let i = 0; i < 15; i++) {
+        document.getElementById('pd'+i).className =
+          'prog-dot' + (i < val.length ? (val.length===15?' valid':' filled') : '');
+      }
+
+      const hint   = document.getElementById('imei-hint');
+      const status = document.getElementById('imei-status');
+      const input  = this;
+
+      if (val.length === 0) {
+        input.className = 'imei-field';
+        status.textContent = '';
+        hint.textContent = '15桁の数字を入力してください';
+        hint.className = 'imei-hint';
+        setEnabled(false);
+      } else if (val.length < 15) {
+        input.className = 'imei-field';
+        status.textContent = '';
+        hint.textContent = `あと ${15-val.length} 桁`;
+        hint.className = 'imei-hint';
+        setEnabled(false);
+      } else {
+        const ok = luhn(val);
+        input.className = 'imei-field ' + (ok ? 'valid' : 'invalid');
+        status.textContent = ok ? '✅' : '❌';
+        hint.textContent   = ok ? 'IMEI番号が確認されました' : '無効なIMEI番号です';
+        hint.className     = 'imei-hint ' + (ok ? 'ok' : 'err');
+        setEnabled(true);
+      }
+    });
+
+    function luhn(n) {
+      let s = 0;
+      for (let i = 0; i < 15; i++) {
+        let d = +n[14-i];
+        if (i%2===1) { d*=2; if(d>9) d-=9; }
+        s += d;
+      }
+      return s%10===0;
+    }
+
+    function setEnabled(on) {
+      document.getElementById('global-copy-btn').disabled = !on;
+      CARRIERS.forEach(id => {
+        document.getElementById('card-'+id).classList.toggle('disabled-card', !on);
+        document.getElementById('btn-'+id).disabled  = !on;
+        document.getElementById('cp-'+id).disabled   = !on;
+      });
+    }
+
+    // グローバルコピー
+    async function globalCopy() {
+      if (!imei) return;
+      await navigator.clipboard.writeText(imei);
+      const btn = document.getElementById('global-copy-btn');
+      btn.textContent = '✅ コピーしました！';
+      btn.classList.add('copied');
+      toast('📋 ' + imei + ' をコピーしました');
+      setTimeout(() => {
+        btn.textContent = '📋 IMEIをコピーする';
+        btn.classList.remove('copied');
+      }, 2000);
+    }
+
+    // コピーのみ（📋ボタン）
+    async function copyOnly(id) {
+      if (!imei) return;
+      await navigator.clipboard.writeText(imei);
+      const btn = document.getElementById('cp-'+id);
+      btn.textContent = '✅';
+      btn.classList.add('copied');
+      toast('📋 コピーしました');
+      setTimeout(() => { btn.textContent='📋'; btn.classList.remove('copied'); }, 2000);
+    }
+
+    // コピー＆開く
+    async function copyAndOpen(id) {
+      if (!imei) return;
+      await navigator.clipboard.writeText(imei);
+      window.open(URLS[id], '_blank', 'noopener');
+      const btn = document.getElementById('btn-'+id);
+      const orig = btn.textContent;
+      btn.textContent = '✅ コピー完了！貼り付けてください';
+      btn.classList.add('done');
+      toast('📋 コピー済み — 入力欄を長押し→貼り付け');
+      setTimeout(() => { btn.textContent=orig; btn.classList.remove('done'); }, 3000);
+    }
+
+    // トースト
+    let toastTimer;
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+    }
+  </script>
+
+</body>
+</html>
